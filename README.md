@@ -66,11 +66,11 @@ func _ready():
 
 To initialization Appodeal SDK call ``initialize`` method:
 ```gdscript
-func initialize(app_key: String, ad_types: int, consent: bool) -> void
+func initialize(app_key: String, ad_types: int) -> void
 ```
 For example:
 ```gdscript
-_appodeal.initialize("YOU_ANDROID_APPODEAL_APP_KEY", 8, false)
+_appodeal.initialize("YOU_ANDROID_APPODEAL_APP_KEY", 8)
 ```
 ### Ad Types
 
@@ -82,7 +82,6 @@ enum AdType {
   BANNER = 2,
   NATIVE = 4,
   REWARDED_VIDEO = 8,
-  NON_SKIPPABLE_VIDEO = 16,
 }
 ```
 Ad types can be combined using "|" operator.
@@ -97,7 +96,6 @@ enum ShowStyle {
   BANNER_TOP = 2,
   BANNER_BOTTOM = 4,
   REWARDED_VIDEO = 8,
-  NON_SKIPPABLE_VIDEO = 16,
 }
 ```
 
@@ -107,7 +105,7 @@ enum ShowStyle {
 
 ```gdscript
 # Initialization Appodeal SDK
-func initialize(app_key: String, ad_types: int, consent: bool) -> void
+func initialize(app_key: String, ad_types: int) -> void
 ```
 ```gdscript
 # Checking initialization for ad type
@@ -169,8 +167,8 @@ func setLocationTracking(enabled: bool) -> void
 func setChildDirectedTreatment(for_kids: bool) -> void
 ```
 ```gdscript
-# Change GDPR consent status
-func updateConsent(consent: bool) -> void
+# Show consent form to change consent status
+func showConsentForm() -> void
 ```
 ```gdscript
 # Disable write external storage permission check (Android-only)
@@ -231,14 +229,6 @@ func cacheAd(ad_type: int) -> void
 # Set user ID for S2S callbacks
 func setUserId(user_id: String) -> void
 ```
-```gdscript
-# Set user age
-func setUserAge(age: int) -> void
-```
-```gdscript
-# Set user gender
-func setUserGender(gender: int) -> void
-```
 
 #### Other
 
@@ -257,6 +247,25 @@ func trackInAppPurchase(amount: float, currency: String) -> void
 ```
 
 ## Signals
+
+### Consent Form
+
+```gdscript
+# Emit when consent form is loaded
+signal consent_form_loaded()
+```
+```gdscript
+# Emit when consent form is shown
+signal consent_form_shown()
+```
+```gdscript
+# Emit when consent form load failed
+signal consent_form_load_failed(error: String)
+```
+```gdscript
+# Emit when consent form is closed
+signal consent_form_closed()
+```
 
 ### Interstitial
 
@@ -351,36 +360,6 @@ signal rewarded_video_expired()
 signal rewarded_video_clicked()
 ```
 
-### Non-Skippable Video
-
-```gdscript
-# Emit when non-skippable video is loaded
-signal non_skippable_video_loaded(precache: bool)
-```
-```gdscript
-# Emit when non-skippable video failed to load
-signal non_skippable_video_load_failed()
-```
-```gdscript
-# Emit when non-skippable video is shown
-signal non_skippable_video_shown()
-```
-```gdscript
-# Emit when non-skippable video show failed
-signal non_skippable_video_show_failed()
-```
-```gdscript
-# Emit when non-skippable video is viewed until the end
-signal non_skippable_video_finished()
-```
-```gdscript
-# Emit when non-skippable video is closed
-signal non_skippable_video_closed(finished: bool)
-```
-```gdscript
-# Emit when non-skippable video is expired
-signal non_skippable_video_expired()
-```
 ## Android-only
 This methods available on Android only.
 ### Methods

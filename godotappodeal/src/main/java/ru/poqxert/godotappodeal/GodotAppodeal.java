@@ -8,10 +8,15 @@ import android.widget.FrameLayout;
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
-import com.appodeal.ads.NonSkippableVideoCallbacks;
 import com.appodeal.ads.RewardedVideoCallbacks;
 import com.appodeal.ads.UserSettings;
+import com.appodeal.ads.initializing.ApdInitializationCallback;
+import com.appodeal.ads.initializing.ApdInitializationError;
 import com.appodeal.ads.utils.Log;
+import com.appodeal.consent.Consent;
+import com.appodeal.consent.ConsentForm;
+import com.appodeal.consent.ConsentFormListener;
+import com.appodeal.consent.ConsentManagerError;
 
 import org.godotengine.godot.Dictionary;
 import org.godotengine.godot.Godot;
@@ -23,10 +28,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class GodotAppodeal extends GodotPlugin {
-    private Activity activity;
+    private final Activity activity;
 
     private FrameLayout layout = null;
 
@@ -52,6 +58,12 @@ public class GodotAppodeal extends GodotPlugin {
     @Override
     public Set<SignalInfo> getPluginSignals() {
         Set<SignalInfo> signalInfoSet = new HashSet<>();
+
+        // Consent form
+        signalInfoSet.add(new SignalInfo("consent_form_loaded"));
+        signalInfoSet.add(new SignalInfo("consent_form_shown"));
+        signalInfoSet.add(new SignalInfo("consent_form_load_failed", String.class));
+        signalInfoSet.add(new SignalInfo("consent_form_closed"));
         // Interstitial
         signalInfoSet.add(new SignalInfo("interstitial_loaded", Boolean.class));
         signalInfoSet.add(new SignalInfo("interstitial_load_failed"));
@@ -75,15 +87,7 @@ public class GodotAppodeal extends GodotPlugin {
         signalInfoSet.add(new SignalInfo("rewarded_video_finished", Double.class, String.class));
         signalInfoSet.add(new SignalInfo("rewarded_video_closed", Boolean.class));
         signalInfoSet.add(new SignalInfo("rewarded_video_expired"));
-        // Non-Skippable video
-        signalInfoSet.add(new SignalInfo("non_skippable_video_loaded", Boolean.class));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_load_failed"));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_shown"));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_show_failed"));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_finished"));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_clicked"));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_closed", Boolean.class));
-        signalInfoSet.add(new SignalInfo("non_skippable_video_expired"));
+
         return  signalInfoSet;
     }
 
@@ -100,8 +104,6 @@ public class GodotAppodeal extends GodotPlugin {
         }
         if((value&8) != 0) {
             res |= Appodeal.REWARDED_VIDEO;
-        } else if((value&16) != 0) {
-            res |= Appodeal.NON_SKIPPABLE_VIDEO;
         }
         return res;
     }
@@ -119,8 +121,6 @@ public class GodotAppodeal extends GodotPlugin {
         }
         if((value&8) != 0) {
             res |= Appodeal.REWARDED_VIDEO;
-        } else if((value&16) != 0) {
-            res |= Appodeal.NON_SKIPPABLE_VIDEO;
         }
         return res;
     }
@@ -240,44 +240,6 @@ public class GodotAppodeal extends GodotPlugin {
                 }
             });
         }
-        if((types&Appodeal.NON_SKIPPABLE_VIDEO) != 0) {
-            Appodeal.setNonSkippableVideoCallbacks(new NonSkippableVideoCallbacks() {
-                @Override
-                public void onNonSkippableVideoLoaded(boolean b) {
-                    emitSignal("non_skippable_video_loaded", b);
-                }
-
-                @Override
-                public void onNonSkippableVideoFailedToLoad() {
-                    emitSignal("non_skippable_video_load_failed");
-                }
-
-                @Override
-                public void onNonSkippableVideoShown() {
-                    emitSignal("non_skippable_video_shown");
-                }
-
-                @Override
-                public void onNonSkippableVideoShowFailed() {
-                    emitSignal("non_skippable_video_show_failed");
-                }
-
-                @Override
-                public void onNonSkippableVideoFinished() {
-                    emitSignal("non_skippable_video_finished");
-                }
-
-                @Override
-                public void onNonSkippableVideoClosed(boolean b) {
-                    emitSignal("non_skippable_video_closed", b);
-                }
-
-                @Override
-                public void onNonSkippableVideoExpired() {
-                    emitSignal("non_skippable_video_expired");
-                }
-            });
-        }
     }
 
     @UsedByGodot
@@ -303,12 +265,12 @@ public class GodotAppodeal extends GodotPlugin {
 
     @UsedByGodot
     public void disableNetwork(String network) {
-        Appodeal.disableNetwork(activity, network);
+        Appodeal.disableNetwork(network);
     }
 
     @UsedByGodot
     public void disableNetworkForAdType(String network, int adType) {
-        Appodeal.disableNetwork(activity, network, getAdType(adType));
+        Appodeal.disableNetwork(network, getAdType(adType));
     }
 
     @UsedByGodot
@@ -327,10 +289,15 @@ public class GodotAppodeal extends GodotPlugin {
     }
 
     @UsedByGodot
-    public void initialize(String appId, int adTypes, boolean consent) {
+    public void initialize(String appKey, int adTypes) {
         int types = getAdType(adTypes);
         setCallbacks(types);
-        Appodeal.initialize(activity, appId, types, consent);
+        Appodeal.initialize(activity, appKey, types, new ApdInitializationCallback() {
+            @Override
+            public void onInitializationFinished(List<ApdInitializationError> list) {
+
+            }
+        });
     }
 
     @UsedByGodot
@@ -368,26 +335,44 @@ public class GodotAppodeal extends GodotPlugin {
     }
 
     @UsedByGodot
-    public void updateConsent(boolean consent) {
-        Appodeal.updateConsent(consent);
+    public void showConsentForm() {
+        ConsentFormListener consentFormListener = new ConsentFormListener() {
+            @Override
+            public void onConsentFormLoaded(ConsentForm consentForm) {
+                emitSignal("consent_form_loaded");
+                consentForm.show();
+            }
+
+            @Override
+            public void onConsentFormError(ConsentManagerError error) {
+                // Consent form loading or showing failed. More info can be found in 'error' object
+                // Initialize the Appodeal SDK with default params.
+                String consentError = "[Appodeal] " + error.getEvent() + ": " + error.getMessage();
+                emitSignal("consent_form_load_failed", consentError);
+            }
+
+            @Override
+            public void onConsentFormOpened() {
+                // Consent form was shown
+                emitSignal("consent_form_shown");
+            }
+
+            @Override
+            public void onConsentFormClosed(Consent consent) {
+                // Consent form was closed, you may initialize Appodeal SDK here
+                Appodeal.updateConsent(consent);
+                emitSignal("consent_form_closed");
+            }
+        };
+
+        // Create new Consent form instance
+        ConsentForm consentForm = new ConsentForm(activity.getApplicationContext(), consentFormListener);
+        consentForm.load();
     }
 
     @UsedByGodot
     public void setUserId(String userId) {
         Appodeal.setUserId(userId);
-    }
-
-    @UsedByGodot
-    public void setUserAge(int age) {
-        Appodeal.setUserAge(age);
-    }
-
-    @UsedByGodot
-    public void setUserGender(int gender) {
-        UserSettings.Gender g = UserSettings.Gender.fromInteger(gender);
-        if(g != null) {
-            Appodeal.setUserGender(g);
-        }
     }
 
     @UsedByGodot
