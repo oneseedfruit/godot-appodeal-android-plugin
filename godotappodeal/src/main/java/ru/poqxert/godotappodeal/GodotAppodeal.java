@@ -221,6 +221,7 @@ public class GodotAppodeal extends GodotPlugin {
 
                 @Override
                 public void onRewardedVideoFinished(double v, String s) {
+                    if (s == null) s = "";
                     emitSignal("rewarded_video_finished", v, s);
                 }
 
